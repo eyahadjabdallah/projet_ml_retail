@@ -34,7 +34,7 @@ def sauvegarder_modele(modele, nom_fichier):
     print(f"✅ Modèle sauvegardé : {chemin}")
 
 # ============================================================
-# VISUALISATIONS — sauvegardées dans reports/
+# VISUALISATIONS
 # ============================================================
 def sauvegarder_figure(nom_fichier):
     os.makedirs('reports', exist_ok=True)

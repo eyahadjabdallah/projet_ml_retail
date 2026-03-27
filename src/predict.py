@@ -43,7 +43,6 @@ def predire_churn(client_df, rf):
         'prob_fidele'  : round(probabilite[0] * 100, 1),
         'prob_churner' : round(probabilite[1] * 100, 1),
     }
-
 # ============================================================
 # PRÉDICTION SEGMENT — Clustering
 # ============================================================

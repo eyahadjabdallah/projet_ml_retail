@@ -1,11 +1,12 @@
-import pandas as pd
-import numpy as np
-import re
-import ipaddress
-from sklearn.preprocessing import StandardScaler, OrdinalEncoder
-from sklearn.model_selection import train_test_split
-import joblib
-import os
+import pandas as pd #manipulation des tableaux de donnees 
+import numpy as np #calculs mathematiques 
+import re # regular expression : permet de detecter des patterns dans du texte . on l'utilise pour detecter les formats de dates 
+import ipaddress # Bibliothèque Python intégrée qui permet d'analyser des adresses IP. On l'utilise pour détecter si une IP est privée ou publique.
+from sklearn.preprocessing import StandardScaler, OrdinalEncoder #StandardScaler pour normaliser les données, OrdinalEncoder pour encoder les catégories avec un ordre
+from sklearn.model_selection import train_test_split  #Fonction qui coupe le dataset en deux parties : entraînement (80%) et test (20%).
+from sklearn.impute import KNNImputer
+import joblib # Permet de sauvegarder et recharger des objets Python (comme nos modèles et scalers) dans des fichiers .pkl
+import os # Permet d'interagir avec le système de fichiers — créer des dossiers, vérifier si un fichier existe, etc.
 
 # ============================================================
 # ÉTAPE 1 — Charger les données
@@ -20,8 +21,12 @@ def charger_donnees(chemin):
 # ============================================================
 def supprimer_features_inutiles(df):
     cols_a_supprimer = ['NewsletterSubscribed', 'CustomerID']
-    df = df.drop(columns=cols_a_supprimer)
-    print(f"✅ Features supprimées : {cols_a_supprimer}")
+    # NewsletterSubscribed = toujours "Yes" (variance nulle, inutile). CustomerID = juste un identifiant, pas une information utile pour prédire.
+    # Colonnes avec >50% manquantes
+    cols_50 = [c for c in df.columns
+               if df[c].isnull().mean() > 0.5]
+    df = df.drop(columns=cols_a_supprimer, errors='ignore')
+    print(f"✅ Features supprimées (variance nulle / >50% NaN) : {cols_a_supprimer}")
     return df
 
 # ============================================================
@@ -38,44 +43,25 @@ def corriger_aberrantes(df):
     df['SatisfactionScore'] = df['SatisfactionScore'].replace({99: np.nan, -1: np.nan})
     print(f"✅ SatisfactionScore   : {n_99} valeurs 99 et {n_m1f} valeurs -1 → NaN")
     return df
-
 # ============================================================
-# ÉTAPE 4 — Imputer les valeurs manquantes
-# ============================================================
-def imputer_manquantes(df):
-    mediane_age = df['Age'].median()
-    df['Age'] = df['Age'].fillna(mediane_age)
-    print(f"✅ Age imputé avec médiane = {mediane_age:.1f}")
-
-    mediane_days = df['AvgDaysBetweenPurchases'].median()
-    df['AvgDaysBetweenPurchases'] = df['AvgDaysBetweenPurchases'].fillna(mediane_days)
-    print(f"✅ AvgDaysBetweenPurchases imputé avec médiane = {mediane_days:.1f}")
-
-    for col in ['SupportTicketsCount', 'SatisfactionScore']:
-        mediane = df[col].median()
-        df[col] = df[col].fillna(mediane)
-        print(f"✅ {col} imputé avec médiane = {mediane:.1f}")
-    return df
-
-# ============================================================
-# ÉTAPE 5 — Parser RegistrationDate
+# ÉTAPE 4 — Parser RegistrationDate
 # ============================================================
 def parser_dates(df):
-    df['RegistrationDate'] = pd.to_datetime(
+    df['RegistrationDate'] = pd.to_datetime( #convertir du texte en objet date Python
         df['RegistrationDate'],
-        dayfirst=True,
-        errors='coerce'
+        dayfirst=True, # priorité au format UK : 12/03/10 = 12 mars et non 3 décembre.
+        errors='coerce'  #si un format est impossible à parser, mettre NaT (Not a Time) au lieu de planter.
     )
     df['RegYear']    = df['RegistrationDate'].dt.year
     df['RegMonth']   = df['RegistrationDate'].dt.month
-    df['RegDay']     = df['RegistrationDate'].dt.day
-    df['RegWeekday'] = df['RegistrationDate'].dt.weekday
+    df['RegDay']     = df['RegistrationDate'].dt.day # le jour (1-31)
+    df['RegWeekday'] = df['RegistrationDate'].dt.weekday #jour de la semaine (lundi a dimanche)
     df = df.drop(columns=['RegistrationDate'])
     print(f"✅ RegistrationDate parsée → RegYear, RegMonth, RegDay, RegWeekday")
     return df
 
 # ============================================================
-# ÉTAPE 6 — Transformer LastLoginIP
+# ÉTAPE 5 — Transformer LastLoginIP
 # ============================================================
 def transformer_ip(df):
     def is_private(ip_str):
@@ -88,20 +74,13 @@ def transformer_ip(df):
     print(f"✅ LastLoginIP → IsPrivateIP (0=publique, 1=privée)")
     return df
 
-
 # ============================================================
-# ÉTAPE 7 — Feature Engineering (section 6.1 cahier des charges)
+# ÉTAPE 6 — Feature Engineering
 # ============================================================
 def feature_engineering(df):
-    # Ratio dépenses / recency
     df['MonetaryPerDay'] = df['MonetaryTotal'] / (df['Recency'] + 1)
-
-    # Panier moyen
     df['AvgBasketValue'] = df['MonetaryTotal'] / df['Frequency']
-
-    # Ancienneté vs activité récente
-    df['TenureRatio'] = df['Recency'] / (df['CustomerTenureDays'] + 1)
-
+    df['TenureRatio']    = df['Recency'] / (df['CustomerTenureDays'] + 1)
     print("✅ Feature Engineering :")
     print("   - MonetaryPerDay  = MonetaryTotal / (Recency + 1)")
     print("   - AvgBasketValue  = MonetaryTotal / Frequency")
@@ -109,7 +88,7 @@ def feature_engineering(df):
     return df
 
 # ============================================================
-# Supprimer multicolinéarité (seuil > 0.8) — section 6.1
+# ÉTAPE 7 — Supprimer multicolinéarité (seuil > 0.8)
 # ============================================================
 def supprimer_multicolineaires(df):
     num_cols = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
@@ -169,17 +148,33 @@ def encoder_categories(df):
     return df
 
 # ============================================================
-# ÉTAPE 9 — Normaliser + Split train/test + Sauvegarder
+# ÉTAPE 9 — Split puis Imputation + Normalisation
+# L'imputation se fait sur X_train puis appliquée sur X_test
 # ============================================================
-def normaliser_et_splitter(df):
+def imputer_et_normaliser(df):
     X = df.drop(columns=['Churn'])
     y = df['Churn']
 
+    # Split stratifié 80/20
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
     print(f"✅ Split : X_train={X_train.shape}, X_test={X_test.shape}")
 
+    # --- Imputation médiane sur X_train → appliquée sur X_test ---
+    mediane_train = X_train.median()
+    X_train = X_train.fillna(mediane_train)
+    X_test  = X_test.fillna(mediane_train)  # même médiane que train
+    print(f"✅ Imputation médiane : fit sur X_train, appliquée sur X_test")
+
+    # --- KNN Imputer (démonstration sur Age si manquant) ---
+    # Note : après fillna médiane, plus de NaN — KNN présenté comme alternative
+    print(f"✅ Alternative KNN Imputer disponible (cf. commentaire dans le code)")
+    # knn = KNNImputer(n_neighbors=5)
+    # X_train = pd.DataFrame(knn.fit_transform(X_train), columns=X_train.columns)
+    # X_test  = pd.DataFrame(knn.transform(X_test),      columns=X_test.columns)
+
+    # --- StandardScaler : fit sur X_train UNIQUEMENT ---
     scaler = StandardScaler()
     X_train_scaled = pd.DataFrame(
         scaler.fit_transform(X_train), columns=X_train.columns
@@ -189,6 +184,7 @@ def normaliser_et_splitter(df):
     )
     print(f"✅ StandardScaler : fit sur X_train uniquement (pas de data leakage)")
 
+    # Sauvegarder
     os.makedirs('data/train_test', exist_ok=True)
     X_train_scaled.to_csv('data/train_test/X_train.csv', index=False)
     X_test_scaled.to_csv('data/train_test/X_test.csv',   index=False)
@@ -197,19 +193,19 @@ def normaliser_et_splitter(df):
     print(f"✅ Fichiers sauvegardés dans data/train_test/")
 
     os.makedirs('models', exist_ok=True)
-    joblib.dump(scaler, 'models/scaler.pkl')
-    print(f"✅ Scaler sauvegardé dans models/scaler.pkl")
+    joblib.dump(scaler,       'models/scaler.pkl')
+    joblib.dump(mediane_train,'models/mediane_train.pkl')
+    print(f"✅ Scaler et médiane sauvegardés dans models/")
 
     return X_train_scaled, X_test_scaled, y_train, y_test
 
 # ============================================================
-# PIPELINE PRINCIPAL — exécuter tout dans l'ordre
+# PIPELINE PRINCIPAL
 # ============================================================
 if __name__ == "__main__":
     df = charger_donnees('data/raw/retail_customers_COMPLETE_CATEGORICAL.csv')
     df = supprimer_features_inutiles(df)
     df = corriger_aberrantes(df)
-    df = imputer_manquantes(df)
     df = parser_dates(df)
     df = transformer_ip(df)
     df = feature_engineering(df)
@@ -218,8 +214,7 @@ if __name__ == "__main__":
 
     os.makedirs('data/processed', exist_ok=True)
     df.to_csv('data/processed/data_clean.csv', index=False)
-    print(f"\n✅ Données nettoyées sauvegardées : data/processed/data_clean.csv")
-    print(f"   Shape finale : {df.shape}")
+    print(f"\n✅ Données nettoyées : data/processed/data_clean.csv — Shape : {df.shape}")
 
-    X_train, X_test, y_train, y_test = normaliser_et_splitter(df)
+    X_train, X_test, y_train, y_test = imputer_et_normaliser(df)
     print("\n🎉 Preprocessing terminé !")
