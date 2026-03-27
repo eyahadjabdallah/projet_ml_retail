@@ -9,20 +9,26 @@ sa clientèle, réduire le churn et optimiser son chiffre d'affaires.
 ## Installation
 
 ### 1. Cloner le projet
-git clone https://github.com/TON_USERNAME/projet_ml_retail.git
+```bash
+git clone https://github.com/eyahadjabdallah/projet_ml_retail.git
 cd projet_ml_retail
+```
 
 ### 2. Créer et activer l'environnement virtuel
+```bash
 python -m venv venv
 venv\Scripts\activate
+```
 
 ### 3. Installer les dépendances
+```bash
 pip install -r requirements.txt
+```
 
 ---
 
 ## Structure du projet
-
+```
 projet_ml_retail/
 ├── data/
 │   ├── raw/                        # Données brutes originales (CSV)
@@ -44,14 +50,16 @@ projet_ml_retail/
 ├── requirements.txt                # Dépendances Python
 ├── .gitignore                      # Fichiers exclus de GitHub
 └── README.md                       # Documentation du projet
+```
 
 ---
 
 ## Guide d'utilisation
 
 ### Étape 1 — Préparation des données
+```bash
 python src/preprocessing.py
-
+```
 Ce script effectue dans l'ordre :
 - Suppression des features inutiles (NewsletterSubscribed, CustomerID)
 - Correction des valeurs aberrantes (999, -1, 99)
@@ -64,16 +72,19 @@ Ce script effectue dans l'ordre :
 - Normalisation StandardScaler + Split 80/20 stratifié
 
 Fichiers générés :
-- data/processed/data_clean.csv
-- data/train_test/X_train.csv
-- data/train_test/X_test.csv
-- data/train_test/y_train.csv
-- data/train_test/y_test.csv
-- models/scaler.pkl
+- `data/processed/data_clean.csv`
+- `data/train_test/X_train.csv`
+- `data/train_test/X_test.csv`
+- `data/train_test/y_train.csv`
+- `data/train_test/y_test.csv`
+- `models/scaler.pkl`
+
+---
 
 ### Étape 2 — Entraînement des modèles
+```bash
 python src/train_model.py
-
+```
 Ce script entraîne 3 modèles :
 - ACP : réduction de 75 features → 49 composantes (95% variance)
 - K-Means : segmentation clients en 4 clusters
@@ -81,22 +92,29 @@ Ce script entraîne 3 modèles :
 - Régression Linéaire : prédiction MonetaryTotal
 
 Fichiers générés :
-- models/pca.pkl
-- models/kmeans.pkl
-- models/random_forest.pkl
-- models/linear_regression.pkl
-- reports/*.png
+- `models/pca.pkl`
+- `models/kmeans.pkl`
+- `models/random_forest.pkl`
+- `models/linear_regression.pkl`
+- `reports/*.png`
+
+---
 
 ### Étape 3 — Prédictions
+```bash
 python src/predict.py
-
+```
 Prédit sur X_test et affiche les résultats.
-Fichier généré : reports/predictions_test.csv
+Fichier généré : `reports/predictions_test.csv`
+
+---
 
 ### Étape 4 — Interface web Flask
+```bash
 python app/app.py
+```
+Ouvrir le navigateur sur : `http://127.0.0.1:5000`
 
-Ouvrir le navigateur sur : http://127.0.0.1:5000
 Saisir les informations d'un client et obtenir :
 - Prédiction Churn (Fidèle ou Churner)
 - Probabilités associées
@@ -106,12 +124,12 @@ Saisir les informations d'un client et obtenir :
 
 ## Modèles et résultats
 
-| Modèle            | Tâche                     | Résultat                        |
-|-------------------|---------------------------|---------------------------------|
-| K-Means           | Clustering clients        | Silhouette = 0.078, k=4         |
-| Random Forest     | Prédiction Churn          | Optimisé via GridSearchCV + SMOTE |
-| Régression linéaire | Prédiction MonetaryTotal | R² = 0.395, RMSE = 8824 £      |
-| ACP               | Réduction de dimension    | 75 → 49 composantes (95%)       |
+| Modèle              | Tâche                     | Résultat                          |
+|---------------------|---------------------------|-----------------------------------|
+| K-Means             | Clustering clients        | Silhouette = 0.078, k=4           |
+| Random Forest       | Prédiction Churn          | Optimisé via GridSearchCV + SMOTE |
+| Régression linéaire | Prédiction MonetaryTotal  | R² = 0.395, RMSE = 8824 £         |
+| ACP                 | Réduction de dimension    | 75 → 49 composantes (95%)         |
 
 ---
 
