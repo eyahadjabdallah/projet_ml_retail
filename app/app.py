@@ -55,8 +55,10 @@ def predict():
         if 'CustomerTenureDays'   in client.columns: client['CustomerTenureDays']   = tenure
 
         # Normaliser
-        client_scaled = scaler_clf.transform(client)
-
+        client_scaled = pd.DataFrame(
+            scaler_clf.transform(client),
+            columns=X_train_clf.columns   
+        )
         # Prédiction Churn
         prediction  = rf.predict(client_scaled)[0]
         probabilite = rf.predict_proba(client_scaled)[0]
@@ -65,9 +67,12 @@ def predict():
         label       = 'Churner ⚠️' if prediction == 1 else 'Fidèle ✅'
 
         # Prédiction Segment
-        client_full_scaled = scaler.transform(
-            pd.DataFrame([X_train.mean()], columns=X_train.columns)
-        )
+        client_full_scaled = pd.DataFrame(
+            scaler.transform(
+                pd.DataFrame([X_train.mean()], columns=X_train.columns)
+        ),
+        columns=X_train.columns            # ← noms de colonnes conservés
+    )
         segment_id = kmeans.predict(client_full_scaled)[0]
         labels_seg = {
             0: 'Segment A — Clients actifs',
