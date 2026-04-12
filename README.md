@@ -2,7 +2,7 @@
 
 Projet de Machine Learning réalisé dans le cadre du module GI2.
 Contexte : entreprise e-commerce de cadeaux souhaitant mieux comprendre
-sa clientèle, réduire le churn et optimiser son chiffre d'affaires.
+sa clientèle, réduire le **churn** et optimiser son chiffre d'affaires.
 
 ---
 
@@ -60,24 +60,24 @@ projet_ml_retail/
 ```bash
 python src/preprocessing.py
 ```
-Ce script effectue dans l'ordre :
-- Suppression des features inutiles (NewsletterSubscribed, CustomerID)
-- Correction des valeurs aberrantes (999, -1, 99)
-- Imputation des valeurs manquantes (médiane)
-- Parsing de RegistrationDate en RegYear, RegMonth, RegDay
-- Transformation de LastLoginIP en IsPrivateIP
-- Feature Engineering (MonetaryPerDay, AvgBasketValue, TenureRatio)
+Ce script effectue :
+
+- Suppression des colonnes inutiles (`NewsletterSubscribed`, `CustomerID`)
+- Correction des valeurs aberrantes (`SupportTicketsCount`, `SatisfactionScore`)
+- Parsing de `RegistrationDate` → `RegYear`, `RegMonth`, `RegDay`, `RegWeekday`
+- Transformation de `LastLoginIP` → `IsPrivateIP` (privée/publique)
+- Feature engineering avancé : `MonetaryPerDay`, `AvgBasketValue`, `TenureRatio`, `MonetaryPerFrequency`, `RecencyLog`, `FrequencyLog`, `CustomerTenureLog`, `AvgDaysBetween_RecencyRatio`
+- Suppression des colonnes de leakage (liées au churn)
 - Suppression de la multicolinéarité (seuil > 0.8)
-- Encodage des features catégorielles (Ordinal, One-Hot, Target)
-- Normalisation StandardScaler + Split 80/20 stratifié
+- Encodage des variables catégorielles (Ordinal, One-Hot)
+- Imputation médiane (fit sur train, appliquée sur test)
+- Normalisation `StandardScaler` (fit sur train uniquement)
+- Split stratifié 80/20
 
 Fichiers générés :
-- `data/processed/data_clean.csv`
-- `data/train_test/X_train.csv`
-- `data/train_test/X_test.csv`
-- `data/train_test/y_train.csv`
-- `data/train_test/y_test.csv`
-- `models/scaler.pkl`
+data/processed/data_clean.csv
+data/train_test/X_train.csv, X_test.csv, y_train.csv, y_test.csv
+models/scaler.pkl, models/mediane_train.pkl
 
 ---
 
@@ -85,18 +85,25 @@ Fichiers générés :
 ```bash
 python src/train_model.py
 ```
-Ce script entraîne 3 modèles :
-- ACP : réduction de 75 features → 49 composantes (95% variance)
-- K-Means : segmentation clients en 4 clusters
-- Random Forest : prédiction Churn avec SMOTE + GridSearchCV
-- Régression Linéaire : prédiction MonetaryTotal
+
+Ce script entraîne 3 modèles de classification + 1 régression :
+
+| Modèle | Technique | Accuracy (test) |
+|--------|-----------|----------------|
+| Random Forest | SMOTE (ratio 0.5), GridSearchCV, seuil optimisé | 91,2 % |
+| XGBoost | SMOTE (ratio 0.5), RandomizedSearchCV, seuil fin | 97,1 % |
+| Stacking | LogisticRegression sur RF + XGB | 96,9 % |
+| Régression linéaire | Prédiction de `MonetaryTotal` | R² = 0,390 |
+
+En plus :
+- **ACP** : réduction de dimension (87 → 56 composantes, 95,5 % variance)
+- **K-Means** : segmentation clients en 4 clusters (silhouette = 0,038)
 
 Fichiers générés :
-- `models/pca.pkl`
-- `models/kmeans.pkl`
-- `models/random_forest.pkl`
-- `models/linear_regression.pkl`
-- `reports/*.png`
+models/pca.pkl  models/kmeans.pkl
+models/random_forest.pkl  models/xgboost_ultime.pkl  models/stacking.pkl
+models/linear_regression.pkl  models/scaler_regression.pkl
+reports/  (matrices de confusion, courbes ACP, importance des features)
 
 ---
 
@@ -104,8 +111,7 @@ Fichiers générés :
 ```bash
 python src/predict.py
 ```
-Prédit sur X_test et affiche les résultats.
-Fichier généré : `reports/predictions_test.csv`
+Utilise les modèles sauvegardés pour prédire sur `X_test` et génère `reports/predictions_test.csv`.
 
 ---
 
@@ -115,42 +121,84 @@ python app/app.py
 ```
 Ouvrir le navigateur sur : `http://127.0.0.1:5000`
 
-Saisir les informations d'un client et obtenir :
-- Prédiction Churn (Fidèle ou Churner)
+Saisir les caractéristiques d'un client pour obtenir :
+- Churn prédit (Fidèle / Churner)
 - Probabilités associées
-- Segment client (A, B, C ou D)
+- Segment client (cluster K-Means)
 
 ---
 
-## Modèles et résultats
+## Résultats détaillés
 
-| Modèle              | Tâche                     | Résultat                          |
-|---------------------|---------------------------|-----------------------------------|
-| K-Means             | Clustering clients        | Silhouette = 0.078, k=4           |
-| Random Forest       | Prédiction Churn          | Optimisé via GridSearchCV + SMOTE |
-| Régression linéaire | Prédiction MonetaryTotal  | R² = 0.395, RMSE = 8824 £         |
-| ACP                 | Réduction de dimension    | 75 → 49 composantes (95%)         |
+### Classification (Churn)
+
+| Modèle | Accuracy | Précision (Churner) | Recall (Churner) | F1-score (Churner) |
+|--------|----------|---------------------|------------------|--------------------|
+| Random Forest | 91,2 % | 0,88 | 0,85 | 0,86 |
+| XGBoost (opt.) | 97,1 % | 0,99 | 0,92 | 0,96 |
+| Stacking | 96,9 % | 0,97 | 0,93 | 0,95 |
+
+**Pourquoi XGBoost surpasse Random Forest ?**
+- Boosting itératif corrige les erreurs précédentes
+- Régularisation L1/L2 intégrée
+- Optimisation du seuil de décision (0,60 au lieu de 0,50) améliore le recall des churners
+
+### Régression (MonetaryTotal)
+
+- **RMSE** : 8 860 £
+- **R²** : 0,390 *(explicable : le montant total dépend de facteurs non disponibles dans les données)*
+
+### Clustering (K-Means)
+
+- 4 segments clients (répartition : 1735, 1424, 337, 1 client)
+- Score de silhouette moyen : 0,038 *(segments peu séparés, acceptable pour des données réelles)*
 
 ---
 
 ## Problèmes de qualité traités
 
-- Valeurs manquantes : Age (30%), AvgDaysBetweenPurchases (1.8%)
-- Valeurs aberrantes : SupportTicketsCount (999, -1), SatisfactionScore (99, -1)
-- Formats inconsistants : RegistrationDate (3 formats différents)
-- Feature inutile : NewsletterSubscribed (variance nulle)
-- Données brutes : LastLoginIP transformé en IsPrivateIP
-- Déséquilibre classes : Churn 33%/67% traité avec SMOTE
-- Multicolinéarité : 11 colonnes supprimées (seuil > 0.8)
+| Type | Features concernées | Traitement |
+|------|---------------------|------------|
+| Valeurs manquantes | `Age`, `AvgDaysBetweenPurchases` | Imputation par médiane (train) |
+| Valeurs aberrantes | `SupportTicketsCount` (999, -1) | Remplacement par NaN → imputation |
+| Valeurs aberrantes | `SatisfactionScore` (99, -1) | Idem |
+| Formats inconsistants | `RegistrationDate` (3 formats) | `pd.to_datetime(dayfirst=True)` |
+| Feature inutile | `NewsletterSubscribed` (toujours Yes) | Suppression |
+| Données brutes | `LastLoginIP` | Extraction `IsPrivateIP` |
+| Déséquilibre classes | Churn (33 % / 67 %) | SMOTE (`sampling_strategy=0.5`) |
+| Multicolinéarité | 11 paires corrélées > 0,8 | Suppression d'une colonne par paire |
+| Leakage | Colonnes corrélées > 0,85 avec Churn | Suppression avant split |
+
+---
+
+## Améliorations apportées (version finale)
+
+- **Feature engineering avancé** : logs, ratios, transformations non linéaires
+- **Random Forest** : GridSearchCV + SMOTE + optimisation du seuil
+- **XGBoost** : RandomizedSearchCV (50 itérations) + seuil fin (pas 0,002)
+- **Stacking** : combinaison RF + XGB via régression logistique
+- **Suppression stricte du leakage** : corrélation > 0,85 → arrêt du script
+- **Visualisations** : matrices de confusion, importance des features, variance ACP
 
 ---
 
 ## Technologies utilisées
 
 - Python 3.10
-- pandas, numpy
-- scikit-learn, imbalanced-learn
-- matplotlib, seaborn
-- Flask
-- joblib
+- `pandas`, `numpy`
+- `scikit-learn`, `imbalanced-learn`, `xgboost`
+- `matplotlib`, `seaborn`
+- `Flask`
+- `joblib`
 
+---
+
+## Auteur
+
+**Eya Hadj Abdallah** – [GitHub](https://github.com/eyahadjabdallah)
+
+---
+
+## Licence
+
+Projet pédagogique – libre d'utilisation pour l'apprentissage.
