@@ -1,13 +1,13 @@
-import pandas as pd
-import numpy as np
-import ipaddress
+import pandas as pd #manipulation des tableaux 
+import numpy as np # calculs numeriques
+import ipaddress # pour analyser les adresses IP
 from sklearn.preprocessing import StandardScaler, OrdinalEncoder, OneHotEncoder
 from sklearn.model_selection import train_test_split
 import joblib
 import os
 
 # ============================================================
-# 1. Chargement
+# 1. Chargement # lire le fichier csv et afficher ses dimensions 
 # ============================================================
 def charger_donnees(chemin):
     df = pd.read_csv(chemin)
@@ -19,6 +19,7 @@ def charger_donnees(chemin):
 # ============================================================
 def supprimer_colonnes_inutiles(df):
     cols_inutiles = ['NewsletterSubscribed', 'CustomerID']
+    #NewsletterSubscribed (toujours "Yes", variance nulle) et CustomerID (simple identifiant).
     df = df.drop(columns=cols_inutiles, errors='ignore')
     print(f"✅ Supprimées (inutiles) : {cols_inutiles}")
     return df
@@ -31,12 +32,13 @@ def corriger_aberrantes(df):
     df['SatisfactionScore'] = df['SatisfactionScore'].replace({99: np.nan, -1: np.nan})
     print("✅ SupportTicketsCount et SatisfactionScore : valeurs aberrantes → NaN")
     return df
-
+    #Remplace les valeurs aberrantes (999, -1, 99) par NaN pour les traiter plus tard par imputation.
 # ============================================================
 # 4. Parsing RegistrationDate
 # ============================================================
-def parser_dates(df):
+def parser_dates(df):#convertir une chaine de caracteres en un objet datetime (comprehensible ar le pc)
     df['RegistrationDate'] = pd.to_datetime(df['RegistrationDate'], dayfirst=True, errors='coerce')
+    #errors='coerce' : si une valeur ne peut pas être parsée, on met NaT (Not a Time) au lieu de planter.
     df['RegYear'] = df['RegistrationDate'].dt.year
     df['RegMonth'] = df['RegistrationDate'].dt.month
     df['RegDay'] = df['RegistrationDate'].dt.day
@@ -63,14 +65,14 @@ def transformer_ip(df):
 # 6. Feature engineering (utilise CustomerTenureDays et Recency)
 # ============================================================
 def feature_engineering(df):
-    df['MonetaryPerDay'] = df['MonetaryTotal'] / (df['Recency'] + 1)
-    df['AvgBasketValue'] = df['MonetaryTotal'] / df['Frequency']
+    df['MonetaryPerDay'] = df['MonetaryTotal'] / (df['Recency'] + 1) # Dépense moyenne par jour 
+    df['AvgBasketValue'] = df['MonetaryTotal'] / df['Frequency'] #Panier moyen.
     df['TenureRatio'] = df['Recency'] / (df['CustomerTenureDays'] + 1)
-    print("✅ Feature engineering : MonetaryPerDay, AvgBasketValue, TenureRatio")
+    print("✅ Feature engineering : MonetaryPerDay, AvgBasketValue, TenureRatio") # Ratio entre l’inactivité récente et l’ancienneté.
     return df
 
 # ============================================================
-# 7. Suppression des colonnes de leakage (après feature engineering)
+# 7. Suppression des colonnes de leakage (après feature engineering)#c’est quand vous donnez au modèle une information qu’il ne devrait pas avoir au moment de la prédiction.
 # ============================================================
 def supprimer_colonnes_leakage(df):
     cols_leakage = [
@@ -127,7 +129,7 @@ def encoder_categories_sans_country(df):
     # One-Hot (sauf Country)
     onehot_cols = ['FavoriteSeason', 'Region', 'WeekendPreference', 'ProductDiversity', 'Gender']
     onehot_cols = [c for c in onehot_cols if c in df.columns]
-    df = pd.get_dummies(df, columns=onehot_cols, drop_first=False)
+    df = pd.get_dummies(df, columns=onehot_cols, drop_first=False)# encodage oneHot et garde toutes les colonnes 
     print(f"✅ One-Hot encodé : {onehot_cols}")
     return df
 
@@ -139,8 +141,8 @@ def preparer_train_test(df):
     y = df['Churn']
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
+        X, y, test_size=0.2, random_state=42, stratify=y 
+    ) #stratify=y garantit que la proportion de churners est identique dans les deux ensembles.
     print(f"✅ Split : X_train={X_train.shape}, X_test={X_test.shape}")
 
     # One-Hot encoding de Country (après split, sans fuite)

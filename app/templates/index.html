@@ -1,257 +1,574 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prédiction Churn — E-commerce</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            font-family: Arial, sans-serif;
-            background: #f0f2f5;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .container {
-            background: white;
-            border-radius: 12px;
-            padding: 40px;
-            max-width: 600px;
-            width: 100%;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
-
-        h1 {
-            text-align: center;
-            color: #2c3e50;
-            margin-bottom: 8px;
-            font-size: 24px;
-        }
-
-        .subtitle {
-            text-align: center;
-            color: #7f8c8d;
-            margin-bottom: 32px;
-            font-size: 14px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            font-weight: bold;
-            color: #2c3e50;
-            margin-bottom: 6px;
-            font-size: 14px;
-        }
-
-        .hint {
-            color: #7f8c8d;
-            font-size: 12px;
-            font-weight: normal;
-        }
-
-        input[type="number"] {
-            width: 100%;
-            padding: 10px 14px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 15px;
-            transition: border-color 0.2s;
-            outline: none;
-        }
-
-        input[type="number"]:focus {
-            border-color: #3498db;
-        }
-
-        button {
-            width: 100%;
-            padding: 14px;
-            background: #3498db;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 10px;
-            transition: background 0.2s;
-        }
-
-        button:hover { background: #2980b9; }
-
-        /* Résultat */
-        .result {
-            margin-top: 32px;
-            padding: 24px;
-            border-radius: 10px;
-            text-align: center;
-        }
-
-        .result.churn {
-            background: #fdf0f0;
-            border: 2px solid #e74c3c;
-        }
-
-        .result.fidele {
-            background: #f0fdf4;
-            border: 2px solid #27ae60;
-        }
-
-        .result-label {
-            font-size: 28px;
-            font-weight: bold;
-            margin-bottom: 12px;
-        }
-
-        .result.churn .result-label { color: #e74c3c; }
-        .result.fidele .result-label { color: #27ae60; }
-
-        .probas {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            margin: 16px 0;
-        }
-
-        .proba-box {
-            background: white;
-            border-radius: 8px;
-            padding: 12px 20px;
-            min-width: 130px;
-        }
-
-        .proba-box .val {
-            font-size: 24px;
-            font-weight: bold;
-        }
-
-        .proba-box .lbl {
-            font-size: 12px;
-            color: #7f8c8d;
-            margin-top: 2px;
-        }
-
-        .segment-box {
-            background: white;
-            border-radius: 8px;
-            padding: 10px 16px;
-            display: inline-block;
-            margin-top: 8px;
-            font-size: 14px;
-            color: #555;
-            border: 1px solid #e0e0e0;
-        }
-
-        .error {
-            margin-top: 20px;
-            padding: 14px;
-            background: #fdf0f0;
-            border: 1px solid #e74c3c;
-            border-radius: 8px;
-            color: #e74c3c;
-            font-size: 14px;
-        }
-
-        .divider {
-            border: none;
-            border-top: 1px solid #e0e0e0;
-            margin: 28px 0;
-        }
-    </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ChurnAI — ML Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* === VOTRE STYLE EXISTANT (CONSERVÉ) === */
+:root {
+  --sidebar-w: 250px;
+  --bg:        #0b0f1a;
+  --surface:   #111827;
+  --card:      #161f2e;
+  --card2:     #1a2436;
+  --border:    rgba(255,255,255,0.07);
+  --border2:   rgba(255,255,255,0.12);
+  --text:      #e8edf5;
+  --muted:     #7b8799;
+  --accent:    #6366f1;
+  --accent2:   #818cf8;
+  --success:   #10b981;
+  --warning:   #f59e0b;
+  --danger:    #ef4444;
+  --glow:      rgba(99,102,241,0.2);
+  --tr: 0.2s ease;
+}
+[data-theme="light"] {
+  --bg:      #f1f5fb;
+  --surface: #e8eef7;
+  --card:    #ffffff;
+  --card2:   #f8faff;
+  --border:  rgba(0,0,0,0.07);
+  --border2: rgba(0,0,0,0.12);
+  --text:    #0f172a;
+  --muted:   #64748b;
+  --glow:    rgba(99,102,241,0.1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;transition:background var(--tr),color var(--tr)}
+/* LAYOUT */
+.shell{display:flex;min-height:100vh}
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;display:flex;flex-direction:column;z-index:100;transition:transform var(--tr)}
+.logo-wrap{padding:24px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--accent),#a855f7);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;box-shadow:0 0 20px var(--glow);flex-shrink:0}
+.logo-name{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:var(--text)}
+.logo-name span{color:var(--accent2)}
+.nav{flex:1;padding:20px 12px;display:flex;flex-direction:column;gap:2px}
+.nav-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:14px 10px 6px}
+.nav-btn{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;cursor:pointer;color:var(--muted);font-size:14px;font-weight:500;border:none;background:none;width:100%;text-align:left;transition:all var(--tr)}
+.nav-btn:hover{background:rgba(255,255,255,0.05);color:var(--text)}
+.nav-btn.active{background:rgba(99,102,241,0.12);color:var(--text);border:1px solid rgba(99,102,241,0.2)}
+.nav-btn.active i{color:var(--accent)}
+.nav-btn i{width:18px;text-align:center;font-size:15px}
+.sidebar-foot{padding:16px;border-top:1px solid var(--border)}
+.theme-btn{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);cursor:pointer;color:var(--muted);font-size:13px;width:100%;transition:all var(--tr)}
+.theme-btn:hover{color:var(--text)}
+/* MAIN */
+.main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--border);padding:0 32px;height:62px;display:flex;align-items:center;justify-content:space-between;z-index:50;backdrop-filter:blur(12px)}
+.topbar-title{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:600}
+.topbar-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.badge-live{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);font-size:12px;font-weight:500;color:var(--success)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--success);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#a855f7);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff}
+/* SECTIONS */
+.section{display:none;padding:30px 32px;animation:fadeUp .3s ease}
+.section.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.sec-title{font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;margin-bottom:6px}
+.sec-sub{color:var(--muted);font-size:14px;margin-bottom:28px}
+/* GRID UTILS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+/* CARD */
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px;box-shadow:0 2px 16px rgba(0,0,0,.2)}
+.card:hover{border-color:var(--border2)}
+.card-title{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.card-title i{color:var(--accent);font-size:13px}
+/* KPI */
+.kpi-val{font-family:'Space Grotesk',sans-serif;font-size:36px;font-weight:700;line-height:1;margin-bottom:6px}
+.kpi-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.kpi-trend{font-size:12px;margin-top:8px;display:flex;align-items:center;gap:4px}
+.up{color:var(--success)}.down{color:var(--danger)}
+/* CHART CONTAINER */
+.chart-box{position:relative;height:240px}
+.chart-box.sm{height:200px}
+/* PREDICT LAYOUT */
+.predict-grid{display:grid;grid-template-columns:1fr 400px;gap:24px;align-items:start}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.fg{display:flex;flex-direction:column;gap:6px}
+.fg.full{grid-column:1/-1}
+.flabel{font-size:12px;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:6px}
+.flabel i{color:var(--accent);font-size:11px}
+.finput,.fselect{background:var(--card2);border:1.5px solid var(--border);border-radius:8px;padding:10px 13px;font-size:14px;color:var(--text);font-family:'Inter',sans-serif;width:100%;outline:none;transition:border-color var(--tr)}
+.finput:focus,.fselect:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+.fhint{font-size:11px;color:var(--muted)}
+.fselect option{background:var(--card)}
+.btn-run{width:100%;padding:13px;background:linear-gradient(135deg,var(--accent),#a855f7);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all var(--tr);box-shadow:0 4px 20px var(--glow)}
+.btn-run:hover{transform:translateY(-1px);box-shadow:0 6px 28px var(--glow)}
+.btn-run:disabled{opacity:.6;cursor:not-allowed;transform:none}
+/* RESULT */
+.result-wrap{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:26px;min-height:380px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.result-idle{text-align:center;color:var(--muted)}
+.result-idle i{font-size:42px;margin-bottom:14px;display:block;opacity:.25}
+.result-idle p{font-size:13px;line-height:1.6}
+.result-content{display:none;width:100%;text-align:center;animation:pop .5s cubic-bezier(.34,1.56,.64,1)}
+@keyframes pop{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}
+.r-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:18px}
+.r-badge.low{background:rgba(16,185,129,.12);color:var(--success);border:1px solid rgba(16,185,129,.2)}
+.r-badge.med{background:rgba(245,158,11,.12);color:var(--warning);border:1px solid rgba(245,158,11,.2)}
+.r-badge.hi{background:rgba(239,68,68,.12);color:var(--danger);border:1px solid rgba(239,68,68,.2)}
+.r-prob{font-family:'Space Grotesk',sans-serif;font-size:64px;font-weight:700;line-height:1;letter-spacing:-2px;margin-bottom:4px}
+.r-prob.low{color:var(--success)}.r-prob.med{color:var(--warning)}.r-prob.hi{color:var(--danger)}
+.r-unit{font-size:13px;color:var(--muted);margin-bottom:22px}
+.r-bar{width:100%;height:7px;background:var(--card2);border-radius:999px;overflow:hidden;margin-bottom:7px}
+.r-fill{height:100%;border-radius:999px;transition:width 1s cubic-bezier(.34,1.2,.64,1)}
+.r-fill.low{background:linear-gradient(90deg,#10b981,#34d399)}
+.r-fill.med{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
+.r-fill.hi{background:linear-gradient(90deg,#ef4444,#f87171)}
+.r-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:20px}
+.r-verdict{padding:11px 14px;border-radius:8px;font-size:13px;line-height:1.5;text-align:left;width:100%;margin-bottom:18px}
+.r-verdict.low{background:rgba(16,185,129,.08);color:var(--success)}
+.r-verdict.med{background:rgba(245,158,11,.08);color:var(--warning)}
+.r-verdict.hi{background:rgba(239,68,68,.08);color:var(--danger)}
+/* Models row */
+.models-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:14px;width:100%}
+.m-card{background:var(--card2);border-radius:10px;padding:12px;border:1px solid var(--border);text-align:center}
+.m-name{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.m-val{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700}
+.m-lbl{font-size:10px;color:var(--muted);margin-top:2px}
+/* ANALYTICS */
+.metrics-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+.metric-mini{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;transition:all var(--tr)}
+.metric-mini:hover{border-color:var(--accent);box-shadow:0 0 16px var(--glow)}
+.mm-val{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;color:var(--accent2);margin-bottom:4px}
+.mm-lbl{font-size:11px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+/* ACTIVITY LIST */
+.act-list{display:flex;flex-direction:column;gap:10px}
+.act-item{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;background:var(--card2);border:1px solid var(--border);transition:all var(--tr)}
+.act-item:hover{border-color:var(--border2)}
+.act-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.act-dot.low{background:var(--success);box-shadow:0 0 6px rgba(16,185,129,.5)}
+.act-dot.med{background:var(--warning);box-shadow:0 0 6px rgba(245,158,11,.5)}
+.act-dot.hi{background:var(--danger);box-shadow:0 0 6px rgba(239,68,68,.5)}
+.act-info{flex:1}
+.act-name{font-size:13px;font-weight:500}
+.act-meta{font-size:11px;color:var(--muted)}
+.act-prob{font-size:13px;font-weight:600}
+/* ABOUT */
+.feat-list{display:flex;flex-direction:column;gap:12px}
+.feat-item{display:flex;align-items:flex-start;gap:14px;padding:15px;background:var(--card2);border-radius:10px;border:1px solid var(--border)}
+.feat-icon{width:36px;height:36px;border-radius:9px;background:rgba(99,102,241,.12);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:15px;flex-shrink:0}
+.feat-title{font-size:14px;font-weight:600;margin-bottom:3px}
+.feat-desc{font-size:12px;color:var(--muted);line-height:1.5}
+.tech-wrap{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.tech{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.18);border-radius:999px;font-size:12px;font-weight:500;color:var(--accent2)}
+/* SPINNER */
+.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* SEGMENT TAG */
+.seg-tag{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;font-size:13px;font-weight:500;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);color:var(--accent2);margin-top:10px}
+/* MOBILE */
+.mob-toggle{display:none;position:fixed;top:14px;left:14px;z-index:200;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;color:var(--text);font-size:15px}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:90;backdrop-filter:blur(3px)}
+/* PROG BAR MINI */
+.prog-mini{height:5px;background:var(--card2);border-radius:999px;overflow:hidden;margin-top:6px}
+.prog-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),#a855f7)}
+@media(max-width:1100px){.predict-grid{grid-template-columns:1fr}}
+@media(max-width:900px){.g2,.g3,.metrics-row{grid-template-columns:1fr 1fr}.models-row{grid-template-columns:1fr}}
+@media(max-width:700px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.overlay.open{display:block}.mob-toggle{display:flex}.main{margin-left:0}.section{padding:20px 16px}.topbar{padding:0 16px 0 54px}.g2,.g3,.g4,.metrics-row{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
 </head>
 <body>
-<div class="container">
 
-    <h1>🛒 Prédiction Churn Client</h1>
-    <p class="subtitle">E-commerce de cadeaux — Analyse comportementale</p>
+<button class="mob-toggle" id="mobToggle"><i class="fa-solid fa-bars"></i></button>
+<div class="overlay" id="overlay"></div>
 
-    <form action="/predict" method="POST">
+<div class="shell">
 
-        <div class="form-group">
-            <label>
-                Recency
-                <span class="hint">— jours depuis le dernier achat (0-400)</span>
-            </label>
-            <input type="number" name="recency" min="0" max="400"
-                   value="{{ recency if recency else 50 }}" required>
-        </div>
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo-wrap">
+    <div class="logo-icon"><i class="fa-solid fa-brain"></i></div>
+    <span class="logo-name">Churn<span>AI</span></span>
+  </div>
+  <nav class="nav">
+    <div class="nav-label">Navigation</div>
+    <button class="nav-btn active" data-sec="dashboard"><i class="fa-solid fa-gauge-high"></i>Dashboard</button>
+    <button class="nav-btn" data-sec="predict"><i class="fa-solid fa-bolt"></i>Prédiction</button>
+    <button class="nav-btn" data-sec="analytics"><i class="fa-solid fa-chart-mixed"></i>Analytics</button>
+    <div class="nav-label">Info</div>
+    <button class="nav-btn" data-sec="about"><i class="fa-solid fa-circle-info"></i>À propos</button>
+  </nav>
+  <div class="sidebar-foot">
+    <button class="theme-btn" id="themeBtn">
+      <i class="fa-solid fa-moon" id="themeIco"></i>
+      <span id="themeLbl">Mode sombre</span>
+    </button>
+  </div>
+</aside>
 
-        <div class="form-group">
-            <label>
-                Frequency
-                <span class="hint">— nombre de commandes (1-50)</span>
-            </label>
-            <input type="number" name="frequency" min="1" max="50"
-                   value="{{ frequency if frequency else 5 }}" required>
-        </div>
+<!-- MAIN -->
+<main class="main">
 
-        <div class="form-group">
-            <label>
-                Monetary Total
-                <span class="hint">— total dépensé en £ (0-15000)</span>
-            </label>
-            <input type="number" name="monetary" min="0" max="15000" step="0.01"
-                   value="{{ monetary if monetary else 500 }}" required>
-        </div>
-
-        <div class="form-group">
-            <label>
-                Âge
-                <span class="hint">— âge estimé du client (18-81)</span>
-            </label>
-            <input type="number" name="age" min="18" max="81"
-                   value="{{ age if age else 40 }}" required>
-        </div>
-
-        <div class="form-group">
-            <label>
-                Customer Tenure
-                <span class="hint">— durée relation client en jours (0-730)</span>
-            </label>
-            <input type="number" name="tenure" min="0" max="730"
-                   value="{{ tenure if tenure else 365 }}" required>
-        </div>
-
-        <button type="submit">🔍 Prédire</button>
-    </form>
-
-    <!-- Erreur -->
-    {% if error %}
-    <div class="error">{{ error }}</div>
-    {% endif %}
-
-    <!-- Résultat -->
-    {% if prediction %}
-    <hr class="divider">
-    <div class="result {{ 'churn' if 'Churner' in prediction else 'fidele' }}">
-
-        <div class="result-label">{{ prediction }}</div>
-
-        <div class="probas">
-    <div class="proba-box">
-        <div class="val" style="color:#e74c3c">{{ prob_churn }}%</div>
-        <div class="lbl">Probabilité Churner</div>
+  <header class="topbar">
+    <div>
+      <div class="topbar-title" id="topTitle">Dashboard</div>
+      <div class="topbar-sub">Analyse comportementale clientèle — E-commerce cadeaux</div>
     </div>
-    <div class="proba-box">
-        <div class="val" style="color:#27ae60">{{ prob_fidele }}%</div>
-        <div class="lbl">Probabilité Fidèle</div>
+    <div class="topbar-right">
+      <div class="badge-live"><span class="dot"></span>Modèle actif</div>
+      <div class="avatar">ML</div>
     </div>
+  </header>
+
+  <!-- DASHBOARD -->
+  <section class="section active" id="sec-dashboard">
+    <div class="sec-title">Vue d'ensemble</div>
+    <div class="sec-sub">Indicateurs clés du dataset — 4 372 clients analysés</div>
+    <div class="g4" style="margin-bottom:22px">
+      <div class="card">
+        <div class="kpi-lbl"><i class="fa-solid fa-users" style="color:var(--accent)"></i> &nbsp;Clients totaux</div>
+        <div class="kpi-val" id="kpi-total">4 372</div>
+        <div class="kpi-trend up"><i class="fa-solid fa-arrow-trend-up"></i> Dataset complet</div>
+      </div>
+      <div class="card">
+        <div class="kpi-lbl"><i class="fa-solid fa-person-walking-arrow-right" style="color:var(--danger)"></i> &nbsp;Taux de churn</div>
+        <div class="kpi-val" id="kpi-churn" style="color:var(--danger)">33.3%</div>
+        <div class="kpi-trend down"><i class="fa-solid fa-triangle-exclamation"></i> Déséquilibre traité SMOTE</div>
+      </div>
+      <div class="card">
+        <div class="kpi-lbl"><i class="fa-solid fa-bullseye" style="color:var(--success)"></i> &nbsp;Accuracy (stacking)</div>
+        <div class="kpi-val" id="kpi-acc" style="color:var(--success)">--</div>
+        <div class="kpi-trend up">RF + XGBoost combinés</div>
+      </div>
+      <div class="card">
+        <div class="kpi-lbl"><i class="fa-solid fa-chart-line" style="color:var(--warning)"></i> &nbsp;ROC-AUC</div>
+        <div class="kpi-val" id="kpi-auc" style="color:var(--warning)">--</div>
+        <div class="kpi-trend up">Modèle stacking</div>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-clock-rotate-left"></i>Exemples de prédictions</div>
+        <div class="act-list">
+          <div class="act-item"><div class="act-dot hi"></div><div class="act-info"><div class="act-name">Client #8821</div><div class="act-meta">Freq 2 · Monetary 48£ · Automne</div></div><div class="act-prob" style="color:var(--danger)">87%</div></div>
+          <div class="act-item"><div class="act-dot med"></div><div class="act-info"><div class="act-name">Client #5543</div><div class="act-meta">Freq 5 · Monetary 320£ · Printemps</div></div><div class="act-prob" style="color:var(--warning)">54%</div></div>
+          <div class="act-item"><div class="act-dot low"></div><div class="act-info"><div class="act-name">Client #2290</div><div class="act-meta">Freq 14 · Monetary 1800£ · Hiver</div></div><div class="act-prob" style="color:var(--success)">11%</div></div>
+          <div class="act-item"><div class="act-dot hi"></div><div class="act-info"><div class="act-name">Client #7703</div><div class="act-meta">Freq 1 · Monetary 35£ · Automne</div></div><div class="act-prob" style="color:var(--danger)">91%</div></div>
+          <div class="act-item"><div class="act-dot low"></div><div class="act-info"><div class="act-name">Client #1128</div><div class="act-meta">Freq 22 · Monetary 4200£ · Hiver</div></div><div class="act-prob" style="color:var(--success)">7%</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-chart-pie"></i>Répartition du risque</div>
+        <div class="chart-box sm"><canvas id="riskChart"></canvas></div>
+        <div style="display:flex;gap:16px;margin-top:14px;justify-content:center">
+          <span style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:50%;background:var(--success);display:inline-block"></span>Faible</span>
+          <span style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:50%;background:var(--warning);display:inline-block"></span>Moyen</span>
+          <span style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:50%;background:var(--danger);display:inline-block"></span>Élevé</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PREDICT -->
+  <section class="section" id="sec-predict">
+    <div class="sec-title">Prédiction du churn</div>
+    <div class="sec-sub">Évaluez le risque de départ d'un client avec les 3 modèles</div>
+    <div class="predict-grid">
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-sliders"></i>Données client</div>
+        <div class="form-grid">
+          <div class="fg"><label class="flabel"><i class="fa-solid fa-repeat"></i>Fréquence d'achat</label><input class="finput" type="number" id="inp-freq" min="1" max="50" value="8" placeholder="ex: 8"><span class="fhint">Nombre de commandes (1–50)</span></div>
+          <div class="fg"><label class="flabel"><i class="fa-solid fa-sterling-sign"></i>Montant total (£)</label><input class="finput" type="number" id="inp-monetary" min="0" max="15000" value="1200" placeholder="ex: 1200"><span class="fhint">Total dépensé (0–15000£)</span></div>
+          <div class="fg"><label class="flabel"><i class="fa-solid fa-sun"></i>Saison préférée</label><select class="fselect" id="inp-season"><option value="Hiver">Hiver</option><option value="Printemps">Printemps</option><option value="Été">Été</option><option value="Automne">Automne</option></select></div>
+          <div class="fg"><label class="flabel"><i class="fa-solid fa-layer-group"></i>Diversité produits</label><select class="fselect" id="inp-diversity"><option value="Spécialisé">Spécialisé</option><option value="Modéré" selected>Modéré</option><option value="Explorateur">Explorateur</option></select></div>
+        </div>
+        <button class="btn-run" id="runBtn"><span id="btnTxt"><i class="fa-solid fa-bolt"></i>&nbsp;Lancer la prédiction</span><div class="spinner" id="btnSpin" style="display:none"></div></button>
+      </div>
+      <div class="result-wrap" id="resWrap">
+        <div class="result-idle" id="resIdle"><i class="fa-solid fa-chart-scatter"></i><p>Renseignez les données<br>et lancez la prédiction</p></div>
+        <div class="result-content" id="resCont">
+          <div class="r-badge" id="rBadge"><i class="fa-solid fa-circle-dot"></i><span id="rLabel">—</span></div>
+          <div class="r-prob" id="rProb">—</div><div class="r-unit">probabilité de churn (stacking)</div>
+          <div class="r-bar"><div class="r-fill" id="rFill" style="width:0%"></div></div>
+          <div class="r-labels"><span>0%</span><span>50%</span><span>100%</span></div>
+          <div class="r-verdict" id="rVerdict"></div>
+          <div class="models-row">
+            <div class="m-card"><div class="m-name">Random Forest</div><div class="m-val" id="rfVal">--</div><div class="m-lbl">prob. churn</div></div>
+            <div class="m-card"><div class="m-name">XGBoost</div><div class="m-val" id="xgbVal">--</div><div class="m-lbl">prob. churn</div></div>
+            <div class="m-card"><div class="m-name">Stacking</div><div class="m-val" id="stkVal">--</div><div class="m-lbl">prob. churn</div></div>
+          </div>
+          <div class="seg-tag" id="segTag"><i class="fa-solid fa-shapes"></i><span id="segLbl">—</span></div>
+          <div class="seg-tag" style="margin-left:8px" id="monTag"><i class="fa-solid fa-sterling-sign"></i><span id="monLbl">—</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ANALYTICS -->
+  <section class="section" id="sec-analytics">
+    <div class="sec-title">Analytics</div>
+    <div class="sec-sub">Performance des modèles et analyse des features</div>
+    <div class="metrics-row">
+      <div class="metric-mini"><div class="mm-val" id="a-acc">--</div><div class="mm-lbl">Accuracy</div></div>
+      <div class="metric-mini"><div class="mm-val" id="a-f1">--</div><div class="mm-lbl">F1-score</div></div>
+      <div class="metric-mini"><div class="mm-val" id="a-rec">--</div><div class="mm-lbl">Rappel</div></div>
+      <div class="metric-mini"><div class="mm-val" id="a-auc">--</div><div class="mm-lbl">ROC-AUC</div></div>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-ranking-star"></i>Features importantes — XGBoost</div>
+        <div class="chart-box"><canvas id="featChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-chart-pie"></i>Distribution Churn</div>
+        <div class="chart-box sm"><canvas id="churnChart"></canvas></div>
+        <div style="margin-top:14px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-size:13px;color:var(--muted)">Clients fidèles</span><span style="font-size:13px;font-weight:600;color:var(--success)">66.7%</span></div>
+          <div class="prog-mini"><div class="prog-fill" style="width:66.7%;background:var(--success)"></div></div>
+          <div style="display:flex;justify-content:space-between;margin-top:8px;margin-bottom:8px"><span style="font-size:13px;color:var(--muted)">Clients churners</span><span style="font-size:13px;font-weight:600;color:var(--danger)">33.3%</span></div>
+          <div class="prog-mini"><div class="prog-fill" style="width:33.3%;background:var(--danger)"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section class="section" id="sec-about">
+    <div class="sec-title">À propos du projet</div>
+    <div class="sec-sub">Pipeline ML complet — Atelier GI2 · 2025-2026</div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-circle-nodes"></i>Pipeline ML</div>
+        <div class="feat-list">
+          <div class="feat-item"><div class="feat-icon"><i class="fa-solid fa-broom"></i></div><div><div class="feat-title">Nettoyage & Prétraitement</div><div class="feat-desc">Correction valeurs aberrantes (999, -1, 99), parsing RegistrationDate, transformation LastLoginIP → IsPrivateIP, suppression data leakage.</div></div></div>
+          <div class="feat-item"><div class="feat-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div><div><div class="feat-title">Feature Engineering</div><div class="feat-desc">MonetaryPerDay, AvgBasketValue, TenureRatio. Encodage Ordinal + One-Hot + Country après split.</div></div></div>
+          <div class="feat-item"><div class="feat-icon"><i class="fa-solid fa-compress"></i></div><div><div class="feat-title">ACP + K-Means (4 clusters)</div><div class="feat-desc">Réduction dimensionnelle pour clustering. Méthode du coude + silhouette score pour choisir k=4.</div></div></div>
+          <div class="feat-item"><div class="feat-icon"><i class="fa-solid fa-robot"></i></div><div><div class="feat-title">RF + XGBoost + Stacking</div><div class="feat-desc">SMOTE pour rééquilibrage. RandomizedSearchCV. Optimisation du seuil. Meta-modèle LogisticRegression.</div></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-code"></i>Stack technique</div>
+        <div class="tech-wrap"><span class="tech"><i class="fa-brands fa-python"></i>Python 3.10</span><span class="tech">scikit-learn</span><span class="tech">XGBoost</span><span class="tech">Flask</span><span class="tech">pandas</span><span class="tech">SMOTE</span><span class="tech">Chart.js</span><span class="tech">joblib</span></div>
+        <div style="margin-top:22px">
+          <div class="card-title"><i class="fa-solid fa-bullseye"></i>Performances (stacking)</div>
+          <div style="display:flex;flex-direction:column;gap:12px;margin-top:10px">
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:13px;color:var(--muted)">Accuracy</span><span id="ab-acc" style="font-size:13px;font-weight:600;color:var(--accent2)">--</span></div><div class="prog-mini"><div class="prog-fill" id="ab-acc-bar" style="width:0%"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:13px;color:var(--muted)">ROC-AUC</span><span id="ab-auc" style="font-size:13px;font-weight:600;color:var(--accent2)">--</span></div><div class="prog-mini"><div class="prog-fill" id="ab-auc-bar" style="width:0%"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:13px;color:var(--muted)">F1-score</span><span id="ab-f1" style="font-size:13px;font-weight:600;color:var(--accent2)">--</span></div><div class="prog-mini"><div class="prog-fill" id="ab-f1-bar" style="width:0%"></div></div></div>
+          </div>
+        </div>
+        <div style="margin-top:20px;padding:13px;background:var(--card2);border-radius:8px;border:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Endpoint API</div>
+          <div style="font-family:monospace;font-size:13px;color:var(--accent2)">POST /predict → JSON</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">RF + XGBoost + Stacking · Segment K-Means · Régression XGBoost</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
 </div>
 
-        <div class="segment-box">📊 {{ segment }}</div>
+<script>
+// ============================================================
+// NAVIGATION
+// ============================================================
+const navBtns  = document.querySelectorAll('.nav-btn');
+const sections = document.querySelectorAll('.section');
+const topTitle = document.getElementById('topTitle');
+const titles   = { dashboard:'Dashboard', predict:'Prédiction', analytics:'Analytics', about:'À propos' };
 
-    </div>
-    {% endif %}
+navBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const sec = btn.dataset.sec;
+    navBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    sections.forEach(s => s.classList.remove('active'));
+    document.getElementById('sec-' + sec).classList.add('active');
+    topTitle.textContent = titles[sec] || '';
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('overlay').classList.remove('open');
+  });
+});
 
-</div>
+// MOBILE
+document.getElementById('mobToggle').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('open');
+});
+document.getElementById('overlay').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+});
+
+// THEME
+document.getElementById('themeBtn').addEventListener('click', () => {
+  const html = document.documentElement;
+  const dark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', dark ? 'light' : 'dark');
+  document.getElementById('themeIco').className = dark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+  document.getElementById('themeLbl').textContent = dark ? 'Mode clair' : 'Mode sombre';
+});
+
+// CHARTS (statiques)
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.color = '#7b8799';
+
+new Chart(document.getElementById('riskChart'), {
+  type: 'doughnut',
+  data: { labels: ['Faible', 'Moyen', 'Élevé'], datasets: [{ data:[58,24,18], backgroundColor:['#10b981','#f59e0b','#ef4444'], borderWidth:0, hoverOffset:6 }] },
+  options: { cutout:'68%', plugins:{ legend:{ display:false } }, responsive:true, maintainAspectRatio:false }
+});
+
+new Chart(document.getElementById('churnChart'), {
+  type: 'doughnut',
+  data: { labels: ['Fidèles','Churners'], datasets: [{ data:[66.7,33.3], backgroundColor:['#10b981','#ef4444'], borderWidth:0, hoverOffset:6 }] },
+  options: { cutout:'68%', plugins:{ legend:{ display:false } }, responsive:true, maintainAspectRatio:false }
+});
+
+// DYNAMIC FEATURE IMPORTANCE (XGBoost)
+async function loadFeatureImportance() {
+  try {
+    const res = await fetch('/feature_importance');
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    const ctx = document.getElementById('featChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: data.labels,
+        datasets: [{
+          label: 'Importance',
+          data: data.values,
+          backgroundColor: 'rgba(99,102,241,0.7)',
+          borderRadius: 4
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { grid: { display: false } }
+        }
+      }
+    });
+  } catch(e) { console.error('Erreur chargement features:', e); }
+}
+
+// MÉTRIQUES
+async function loadMetrics() {
+  try {
+    const res  = await fetch('/metrics');
+    const data = await res.json();
+    if (data.error) return;
+
+    const acc = (data.accuracy * 100).toFixed(1) + '%';
+    const f1  = (data.f1 * 100).toFixed(1) + '%';
+    const rec = (data.recall * 100).toFixed(1) + '%';
+    const auc = data.roc_auc.toFixed(3);
+
+    document.getElementById('kpi-acc').textContent  = acc;
+    document.getElementById('kpi-auc').textContent  = auc;
+    document.getElementById('kpi-churn').textContent = data.churn_rate + '%';
+    document.getElementById('a-acc').textContent = acc;
+    document.getElementById('a-f1').textContent  = f1;
+    document.getElementById('a-rec').textContent = rec;
+    document.getElementById('a-auc').textContent = auc;
+    document.getElementById('ab-acc').textContent = acc;
+    document.getElementById('ab-auc').textContent = auc;
+    document.getElementById('ab-f1').textContent  = f1;
+    document.getElementById('ab-acc-bar').style.width = (data.accuracy * 100) + '%';
+    document.getElementById('ab-auc-bar').style.width = (data.roc_auc  * 100) + '%';
+    document.getElementById('ab-f1-bar').style.width  = (data.f1       * 100) + '%';
+  } catch(e) { console.error('Metrics error:', e); }
+}
+
+// PRÉDICTION
+document.getElementById('runBtn').addEventListener('click', async () => {
+  const btn  = document.getElementById('runBtn');
+  const txt  = document.getElementById('btnTxt');
+  const spin = document.getElementById('btnSpin');
+
+  btn.disabled = true;
+  txt.style.display  = 'none';
+  spin.style.display = 'block';
+
+  const payload = {
+    frequency:         parseFloat(document.getElementById('inp-freq').value),
+    monetary:          parseFloat(document.getElementById('inp-monetary').value),
+    favorite_season:   document.getElementById('inp-season').value,
+    product_diversity: document.getElementById('inp-diversity').value
+  };
+
+  try {
+    const res    = await fetch('/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
+
+    const prob  = result.probability;
+    const level = prob < 35 ? 'low' : prob < 65 ? 'med' : 'hi';
+    const labels  = { low:'Risque faible', med:'Risque modéré', hi:'Risque élevé' };
+    const verdicts = {
+      low: 'Client fidèle. Maintenez l\'engagement avec des offres de fidélité personnalisées.',
+      med: 'Risque modéré. Envisagez une campagne de réactivation ciblée dans les 30 jours.',
+      hi:  'Risque élevé ! Contactez ce client immédiatement avec une offre exclusive.'
+    };
+
+    document.getElementById('resIdle').style.display   = 'none';
+    document.getElementById('resCont').style.display   = 'block';
+
+    const badge = document.getElementById('rBadge');
+    badge.className = 'r-badge ' + level;
+    document.getElementById('rLabel').textContent = labels[level];
+
+    const probEl = document.getElementById('rProb');
+    probEl.className   = 'r-prob ' + level;
+    probEl.textContent = prob + '%';
+
+    const fill = document.getElementById('rFill');
+    fill.className  = 'r-fill ' + level;
+    fill.style.width = '0%';
+    setTimeout(() => { fill.style.width = prob + '%'; }, 50);
+
+    const verdict = document.getElementById('rVerdict');
+    verdict.className   = 'r-verdict ' + level;
+    verdict.textContent = verdicts[level];
+
+    document.getElementById('rfVal').textContent  = result.rf.churn  + '%';
+    document.getElementById('xgbVal').textContent = result.xgb.churn + '%';
+    document.getElementById('stkVal').textContent = result.stacking.churn + '%';
+
+    const colLevel = (v) => v < 35 ? 'var(--success)' : v < 65 ? 'var(--warning)' : 'var(--danger)';
+    document.getElementById('rfVal').style.color  = colLevel(result.rf.churn);
+    document.getElementById('xgbVal').style.color = colLevel(result.xgb.churn);
+    document.getElementById('stkVal').style.color = colLevel(result.stacking.churn);
+
+    document.getElementById('segLbl').textContent = '📊 ' + result.segment;
+    document.getElementById('monLbl').textContent = '💷 ' + result.monetary_pred + ' £ prédit';
+
+  } catch(e) {
+    alert('Erreur : ' + e.message);
+  } finally {
+    btn.disabled       = false;
+    txt.style.display  = 'flex';
+    spin.style.display = 'none';
+  }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadMetrics();
+  loadFeatureImportance();
+});
+</script>
 </body>
 </html>

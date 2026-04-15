@@ -1,108 +1,182 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import numpy as np
 import joblib
 import os
 import sys
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, recall_score
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 app = Flask(__name__)
 
-COLS_LEAKAGE = ['ChurnRiskCategory', 'CustomerType_Perdu']
-
 # ============================================================
-# Chargement des modèles au démarrage
+# Chargement des modèles
 # ============================================================
-rf     = joblib.load('models/random_forest.pkl')
-kmeans = joblib.load('models/kmeans.pkl')
-scaler = joblib.load('models/scaler.pkl')
+rf       = joblib.load('models/random_forest.pkl')
+xgb_clf  = joblib.load('models/xgboost.pkl')
+stacking = joblib.load('models/stacking.pkl')
+scaler   = joblib.load('models/scaler.pkl')
+pca      = joblib.load('models/pca.pkl')
+kmeans   = joblib.load('models/kmeans.pkl')
+reg_model  = joblib.load('models/regression_xgboost_optimized.pkl')
+reg_scaler = joblib.load('models/scaler_regression.pkl')
 
 X_train = pd.read_csv('data/train_test/X_train.csv')
-X_train_clf = X_train.drop(columns=COLS_LEAKAGE, errors='ignore')
-scaler_clf = StandardScaler()
-scaler_clf.fit(X_train_clf)
+X_test  = pd.read_csv('data/train_test/X_test.csv')
+y_test  = pd.read_csv('data/train_test/y_test.csv').squeeze()
+
+feature_names = X_train.columns.tolist()
+mean_values   = X_train.mean().to_dict()
+
+df_reg = pd.read_csv('data/processed/data_clean.csv')
+if 'Country' in df_reg.columns:
+    df_reg = df_reg.drop(columns=['Country'])
+X_reg = df_reg.drop(columns=['MonetaryTotal', 'Churn'])
+reg_median  = X_reg.median().to_dict()
+reg_columns = X_reg.columns.tolist()
+
+def scale_value(col, val):
+    idx = feature_names.index(col)
+    return (val - scaler.mean_[idx]) / scaler.scale_[idx]
 
 # ============================================================
-# PAGE PRINCIPALE
+# Routes
 # ============================================================
 @app.route('/')
 def index():
-    return render_template('index.html', prediction=None)
+    return render_template('index.html')
 
-# ============================================================
-# PRÉDICTION — reçoit le formulaire et prédit
-# ============================================================
+@app.route('/metrics')
+def metrics():
+    """Retourne les métriques du XGBoost avec seuil optimisé (0.60)"""
+    try:
+        # Prédictions XGBoost avec seuil à 0.60
+        y_proba_xgb = xgb_clf.predict_proba(X_test)[:, 1]
+        y_pred_xgb  = (y_proba_xgb >= 0.60).astype(int)
+        return jsonify({
+            'accuracy' : float(round(accuracy_score(y_test, y_pred_xgb), 3)),
+            'f1'       : float(round(f1_score(y_test, y_pred_xgb), 3)),
+            'recall'   : float(round(recall_score(y_test, y_pred_xgb), 3)),
+            'roc_auc'  : float(round(roc_auc_score(y_test, y_proba_xgb), 3)),
+            'n_clients': int(len(X_train) + len(X_test)),
+            'churn_rate': float(round(float(y_test.mean()) * 100, 1))
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/feature_importance')
+def feature_importance():
+    """Retourne les 10 features les plus importantes du modèle XGBoost"""
+    try:
+        importances = xgb_clf.feature_importances_
+        feat_imp = dict(zip(feature_names, importances))
+        sorted_imp = sorted(feat_imp.items(), key=lambda x: x[1], reverse=True)[:10]
+        data = {
+            'labels': [item[0] for item in sorted_imp],
+            'values': [float(item[1]) for item in sorted_imp]
+        }
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
-        # Récupérer les valeurs du formulaire
-        recency   = float(request.form['recency'])
-        frequency = float(request.form['frequency'])
-        monetary  = float(request.form['monetary'])
-        age       = float(request.form['age'])
-        tenure    = float(request.form['tenure'])
+        data = request.get_json()
 
-        # Créer un client avec les valeurs moyennes pour toutes les colonnes
-        client = pd.DataFrame([X_train_clf.mean()], columns=X_train_clf.columns)
+        frequency        = float(data['frequency'])
+        monetary         = float(data['monetary'])
+        favorite_season  = data['favorite_season']
+        product_diversity = data['product_diversity']
 
-        # Remplacer les colonnes saisies par l'utilisateur
-        if 'Recency'              in client.columns: client['Recency']              = recency
-        if 'Frequency'            in client.columns: client['Frequency']            = frequency
-        if 'MonetaryTotal'        in client.columns: client['MonetaryTotal']        = monetary
-        if 'Age'                  in client.columns: client['Age']                  = age
-        if 'CustomerTenureDays'   in client.columns: client['CustomerTenureDays']   = tenure
+        # Construire le vecteur client
+        client = mean_values.copy()
+        for col in feature_names:
+            if col.startswith('FavoriteSeason_') or col.startswith('ProductDiversity_'):
+                client[col] = 0
+        if f'FavoriteSeason_{favorite_season}' in client:
+            client[f'FavoriteSeason_{favorite_season}'] = 1
+        if f'ProductDiversity_{product_diversity}' in client:
+            client[f'ProductDiversity_{product_diversity}'] = 1
+        if 'Frequency' in feature_names:
+            client['Frequency'] = scale_value('Frequency', frequency)
+        if 'MonetaryTotal' in feature_names:
+            client['MonetaryTotal'] = scale_value('MonetaryTotal', monetary)
 
-        # Normaliser
-        client_scaled = pd.DataFrame(
-            scaler_clf.transform(client),
-            columns=X_train_clf.columns   
-        )
-        # Prédiction Churn
-        prediction  = rf.predict(client_scaled)[0]
-        probabilite = rf.predict_proba(client_scaled)[0]
-        prob_churn  = round(probabilite[1] * 100, 1)
-        prob_fidele = round(probabilite[0] * 100, 1)
-        label       = 'Churner ⚠️' if prediction == 1 else 'Fidèle ✅'
+        client_df = pd.DataFrame([client], columns=feature_names)
 
-        # Prédiction Segment
-        client_full_scaled = pd.DataFrame(
-            scaler.transform(
-                pd.DataFrame([X_train.mean()], columns=X_train.columns)
-        ),
-        columns=X_train.columns            # ← noms de colonnes conservés
-    )
-        segment_id = kmeans.predict(client_full_scaled)[0]
-        labels_seg = {
-            0: 'Segment A — Clients actifs',
-            1: 'Segment B — Clients réguliers',
-            2: 'Segment C — Clients occasionnels',
-            3: 'Segment D — Clients inactifs',
-        }
-        segment_label = labels_seg.get(int(segment_id), f'Segment {segment_id}')
+        # Random Forest
+        proba_rf       = rf.predict_proba(client_df)[0]
+        prob_rf_churn  = float(round(proba_rf[1] * 100, 1))
+        prob_rf_fidele = float(round(proba_rf[0] * 100, 1))
 
-        return render_template('index.html',
-            prediction   = label,
-            prob_churn   = prob_churn,
-            prob_fidele  = prob_fidele,
-            segment      = segment_label,
-            recency      = recency,
-            frequency    = frequency,
-            monetary     = monetary,
-            age          = age,
-            tenure       = tenure,
-            error        = None
-        )
+        # XGBoost
+        proba_xgb       = xgb_clf.predict_proba(client_df)[0]
+        prob_xgb_churn  = float(round(proba_xgb[1] * 100, 1))
+        prob_xgb_fidele = float(round(proba_xgb[0] * 100, 1))
+
+        # Stacking
+        meta = np.array([[proba_rf[1], proba_xgb[1]]])
+        stk_pred  = stacking.predict(meta)[0]
+        stk_proba = stacking.predict_proba(meta)[0]
+        prob_stk_churn  = float(round(stk_proba[1] * 100, 1))
+        prob_stk_fidele = float(round(stk_proba[0] * 100, 1))
+
+        # Segmentation K-Means
+        try:
+            client_scaled = scaler.transform(client_df)
+            client_pca    = pca.transform(client_scaled)
+            seg_id = int(kmeans.predict(client_pca)[0])
+            segments = {
+                0: 'Premium',
+                1: 'Réguliers',
+                2: 'Occasionnels',
+                3: 'Inactifs'
+            }
+            segment_label = segments.get(seg_id, f'Segment {seg_id}')
+        except Exception:
+            seg_id        = -1
+            segment_label = 'Non disponible'
+
+        # Régression
+        try:
+            reg_row = {col: reg_median.get(col, 0) for col in reg_columns}
+            if 'Frequency' in reg_row:
+                reg_row['Frequency'] = frequency
+            for col in reg_columns:
+                if col.startswith('FavoriteSeason_'):
+                    reg_row[col] = 0
+                if col.startswith('ProductDiversity_'):
+                    reg_row[col] = 0
+            if f'FavoriteSeason_{favorite_season}' in reg_row:
+                reg_row[f'FavoriteSeason_{favorite_season}'] = 1
+            if f'ProductDiversity_{product_diversity}' in reg_row:
+                reg_row[f'ProductDiversity_{product_diversity}'] = 1
+            reg_df     = pd.DataFrame([reg_row], columns=reg_columns)
+            reg_scaled = reg_scaler.transform(reg_df)
+            pred_val   = float(reg_model.predict(reg_scaled)[0])
+            monetary_pred = float(round(pred_val, 2)) if pred_val >= 0 else 0.0
+        except Exception:
+            monetary_pred = 0.0
+
+        return jsonify({
+            'rf':  {'churn': prob_rf_churn,  'fidele': prob_rf_fidele},
+            'xgb': {'churn': prob_xgb_churn, 'fidele': prob_xgb_fidele},
+            'stacking': {
+                'churn': prob_stk_churn,
+                'fidele': prob_stk_fidele,
+                'label': 'Churner' if stk_pred == 1 else 'Fidèle'
+            },
+            'segment':  segment_label,
+            'seg_id':   seg_id,
+            'monetary_pred': monetary_pred,
+            'probability': prob_stk_churn
+        })
 
     except Exception as e:
-        return render_template('index.html',
-            prediction=None,
-            error=f"Erreur : {str(e)}"
-        )
+        return jsonify({'error': str(e)}), 500
 
-# ============================================================
-# LANCEMENT
-# ============================================================
 if __name__ == '__main__':
     app.run(debug=True)
